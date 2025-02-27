@@ -8,6 +8,7 @@
 #include <common/string_util.h>
 #include "common/common_paths.h"
 #include "common/file_util.h"
+#include "common/string_util.h"
 #include "core/hw/aes/key.h"
 #include "core/hw/ecc.h"
 #include "cryptopp/osrng.h"
