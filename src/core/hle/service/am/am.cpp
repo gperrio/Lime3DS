@@ -1,4 +1,4 @@
-// Copyright 2015 Citra Emulator Project
+// Copyright Citra Emulator Project / Azahar Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
@@ -2467,15 +2467,19 @@ void Module::Interface::GetNumImportTitleContextsImpl(IPC::RequestParser& rp,
     IPC::RequestBuilder rb = rp.MakeBuilder(3, 0);
     rb.Push(ResultSuccess);
 
- //   u32 count = 0;
+    // TODO: Make this actually do something:
+    /*
+    u32 count = 0;
     for (auto it = am->import_title_contexts.begin(); it != am->import_title_contexts.end(); it++) {
         if ((include_installing &&
-                (it->second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
-                 it->second.state == ImportTitleContextState::RESUMABLE)) ||
-            (include_finalizing && it->second.state == ImportTitleContextState::WAITING_FOR_COMMIT)) {
-//            count++;
+             (it->second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
+              it->second.state == ImportTitleContextState::RESUMABLE)) ||
+            (include_finalizing &&
+             it->second.state == ImportTitleContextState::WAITING_FOR_COMMIT)) {
+            count++;
         }
     }
+    */
 
     rb.Push<u32>(static_cast<u32>(am->import_title_contexts.size()));
 }
