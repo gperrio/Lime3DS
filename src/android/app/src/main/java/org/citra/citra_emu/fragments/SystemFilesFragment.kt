@@ -149,6 +149,11 @@ class SystemFilesFragment : Fragment() {
         outState.putString(REGION_START, binding.dropdownSystemRegionStart.text.toString())
     }
 
+    override fun onResume() {
+        super.onResume()
+        SystemSaveGame.load()
+    }
+
     override fun onPause() {
         super.onPause()
         SystemSaveGame.save()
