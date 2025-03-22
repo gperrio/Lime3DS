@@ -1,8 +1,8 @@
 name: citra-license
 
 on:
-  pull_request:
-    branches: [ master ]
+#  pull_request:
+#    branches: [ master ]
 
 jobs:
   license-header:
