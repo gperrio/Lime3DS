@@ -21,6 +21,10 @@ namespace Core {
 class System;
 }
 
+namespace HW::UniqueData {
+enum class SecureDataLoadStatus;
+}
+
 namespace Service::CFG {
 
 enum ConfigBlockID {

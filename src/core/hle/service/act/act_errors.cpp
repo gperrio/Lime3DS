@@ -25,6 +25,9 @@ u32 GetACTErrorCode(Result result) {
         case ErrDescriptions::AlreadyInitialized:
             error_code = ErrCodes::AlreadyInitialized;
             break;
+        case ErrDescriptions::AcStatusDisconnected:
+            error_code = ErrCodes::AcStatusDisconnected;
+            break;
         case ErrDescriptions::ErrDesc103:
             error_code = ErrCodes::ErrCode225103;
             break;

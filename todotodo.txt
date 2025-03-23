@@ -1,0 +1,52 @@
+todotodo
+
+D:\dev\azahar\myLime3DS\src\core\hle\kernel\ipc.cpp
+D:\dev\azahar\myLime3DS\src\core\hle\applets\erreula.cpp
+D:\dev\azahar\myLime3DS\src\citra_qt\game_list_p.h
+D:\dev\azahar\myLime3DS\src\core\hle\service\ac\ac.cpp
+D:\dev\azahar\myLime3DS\src\core\hle\service\ac\ac.h
+D:\dev\azahar\myLime3DS\src\core\hle\service\cfg\cfg.cpp
+D:\dev\azahar\myLime3DS\src\citra_qt\configuration\configure_system.cpp
+D:\dev\azahar\myLime3DS\src\citra_qt\configuration\configure_system.ui
+D:\dev\azahar\myLime3DS\src\core\file_sys\ncch_container.cpp
+D:\dev\azahar\myLime3DS\src\core\hw\aes\key.cpp
+D:\dev\azahar\myLime3DS\src\core\file_sys\ticket.cpp
+D:\dev\azahar\myLime3DS\src\core\hw\rsa\rsa.cpp
+D:\dev\azahar\myLime3DS\src\core\hle\service\http\http_c.cpp
+D:\dev\azahar\myLime3DS\src\core\hle\service\am\am.cpp
+
+
+D:\dev\azahar\myLime3DS\src\citra_qt\game_list_worker.cpp
+	new GameListItemPath
+		last argument boolean, maybo to prevent decrypting
+
+D:\dev\azahar\myLime3DS\src\citra_qt\game_list_p.h
+	GameListItemPath
+		last argument boolean, maybo to prevent decrypting
+
+D:\dev\azahar\myLime3DS\src\core\hw\rsa\rsa.h
+D:\dev\azahar\myLime3DS\src\core\hw\rsa\rsa.cpp
+	GetSlot
+		return changed to const ref
+
+D:\dev\azahar\myLime3DS\src\core\hle\service\http\http_c.cpp
+	big changes
+		probably good ones??
+
+D:\dev\azahar\myLime3DS\src\core\hle\service\am\am.h
+	new enum InvalidImportState is 4 like CIACurrentlyInstalling
+
+D:\dev\azahar\myLime3DS\src\core\hle\service\am\am.h
+D:\dev\azahar\myLime3DS\src\core\hle\service\am\am.cpp
+	WriteTitleMetadata
+		new arguments for offset
+
+
+
+
+
+
+
+
+
+

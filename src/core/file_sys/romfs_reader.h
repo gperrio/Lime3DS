@@ -42,8 +42,7 @@ private:
 class DirectRomFSReader : public RomFSReader {
 public:
     DirectRomFSReader(FileUtil::IOFile&& file, std::size_t file_offset, std::size_t data_size)
-        : is_encrypted(false), file(std::move(file)), file_offset(file_offset),
-          data_size(data_size) {}
+        : is_encrypted(false), file(std::move(file)), file_offset(file_offset), data_size(data_size) {}
 
     DirectRomFSReader(FileUtil::IOFile&& file, std::size_t file_offset, std::size_t data_size,
                       const std::array<u8, 16>& key, const std::array<u8, 16>& ctr,

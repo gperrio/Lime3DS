@@ -29,6 +29,7 @@
 #include "core/hle/service/cfg/cfg_s.h"
 #include "core/hle/service/cfg/cfg_u.h"
 #include "core/loader/loader.h"
+#include "core/hw/unique_data.h"
 
 SERVICE_CONSTRUCT_IMPL(Service::CFG::Module)
 SERIALIZE_EXPORT_IMPL(Service::CFG::Module)
@@ -217,16 +218,62 @@ void Module::Interface::GetRegion(Kernel::HLERequestContext& ctx) {
 void Module::Interface::SecureInfoGetByte101(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx);
 
+#ifdef todotodo
+    const auto& secure_info_a = HW::UniqueData::GetSecureInfoA();
+    const auto& local_friend_code_seed_b = HW::UniqueData::GetLocalFriendCodeSeedB();
+
+    // Never happens on real hardware, but may happen if user didn't supply a dump.
+    // Always make sure to have available both secure data kinds or error otherwise.
+    if (!secure_info_a.IsValid() || !local_friend_code_seed_b.IsValid()) {
+        IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+        rb.Push(Result(ErrorDescription::NotFound, ErrorModule::Config, ErrorSummary::InvalidState,
+                       ErrorLevel::Permanent));
+    }
+
+    u8 ret = secure_info_a.body.unknown;
+#else
     u8 ret = 0;
     if (cfg->secure_info_a_loaded) {
         ret = cfg->secure_info_a.unknown;
     }
+#endif
 
     IPC::RequestBuilder rb = rp.MakeBuilder(2, 0);
     rb.Push(ResultSuccess);
     rb.Push<u8>(ret);
 }
 
+#ifdef todotodo
+void Module::Interface::SecureInfoGetSerialNo(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp(ctx);
+    [[maybe_unused]] u32 out_size = rp.Pop<u32>();
+    auto out_buffer = rp.PopMappedBuffer();
+
+    if (out_buffer.GetSize() < sizeof(HW::UniqueData::SecureInfoA::body.serial_number)) {
+        IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+        rb.Push(Result(ErrorDescription::InvalidSize, ErrorModule::Config,
+                       ErrorSummary::WrongArgument, ErrorLevel::Permanent));
+    }
+
+    const auto& secure_info_a = HW::UniqueData::GetSecureInfoA();
+    const auto& local_friend_code_seed_b = HW::UniqueData::GetLocalFriendCodeSeedB();
+
+    // Never happens on real hardware, but may happen if user didn't supply a dump.
+    // Always make sure to have available both secure data kinds or error otherwise.
+    if (!secure_info_a.IsValid() || !local_friend_code_seed_b.IsValid()) {
+        IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+        rb.Push(Result(ErrorDescription::NotFound, ErrorModule::Config, ErrorSummary::InvalidState,
+                       ErrorLevel::Permanent));
+    }
+
+    out_buffer.Write(secure_info_a.body.serial_number.data(), 0,
+                     sizeof(HW::UniqueData::SecureInfoA::body.serial_number));
+
+    IPC::RequestBuilder rb = rp.MakeBuilder(1, 2);
+    rb.Push(ResultSuccess);
+    rb.PushMappedBuffer(out_buffer);
+}
+#else
 void Module::Interface::SecureInfoGetSerialNo(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx);
     [[maybe_unused]] u32 out_size = rp.Pop<u32>();
@@ -251,6 +298,7 @@ void Module::Interface::SecureInfoGetSerialNo(Kernel::HLERequestContext& ctx) {
     rb.Push(ResultSuccess);
     rb.PushMappedBuffer(out_buffer);
 }
+#endif
 
 void Module::Interface::SetUUIDClockSequence(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx);
@@ -392,6 +440,51 @@ void Module::Interface::UpdateConfigNANDSavegame(Kernel::HLERequestContext& ctx)
     rb.Push(cfg->UpdateConfigNANDSavegame());
 }
 
+#ifdef todotodo
+void Module::Interface::GetLocalFriendCodeSeedData(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp(ctx);
+    [[maybe_unused]] u32 out_size = rp.Pop<u32>();
+    auto out_buffer = rp.PopMappedBuffer();
+    IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+
+    if (out_buffer.GetSize() < sizeof(HW::UniqueData::LocalFriendCodeSeedB)) {
+        rb.Push(Result(ErrorDescription::InvalidSize, ErrorModule::Config,
+                       ErrorSummary::WrongArgument, ErrorLevel::Permanent));
+    }
+
+    const auto& secure_info_a = HW::UniqueData::GetSecureInfoA();
+    const auto& local_friend_code_seed_b = HW::UniqueData::GetLocalFriendCodeSeedB();
+
+    // Never happens on real hardware, but may happen if user didn't supply a dump.
+    // Always make sure to have available both secure data kinds or error otherwise.
+    if (!secure_info_a.IsValid() || !local_friend_code_seed_b.IsValid()) {
+        rb.Push(Result(ErrorDescription::NotFound, ErrorModule::Config, ErrorSummary::InvalidState,
+                       ErrorLevel::Permanent));
+    }
+
+    out_buffer.Write(&local_friend_code_seed_b, 0, sizeof(HW::UniqueData::LocalFriendCodeSeedB));
+    rb.Push(ResultSuccess);
+}
+
+void Module::Interface::GetLocalFriendCodeSeed(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp(ctx);
+
+    const auto& secure_info_a = HW::UniqueData::GetSecureInfoA();
+    const auto& local_friend_code_seed_b = HW::UniqueData::GetLocalFriendCodeSeedB();
+
+    // Never happens on real hardware, but may happen if user didn't supply a dump.
+    // Always make sure to have available both secure data kinds or error otherwise.
+    if (!secure_info_a.IsValid() || !local_friend_code_seed_b.IsValid()) {
+        IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+        rb.Push(Result(ErrorDescription::NotFound, ErrorModule::Config, ErrorSummary::InvalidState,
+                       ErrorLevel::Permanent));
+    }
+
+    IPC::RequestBuilder rb = rp.MakeBuilder(3, 0);
+    rb.Push(ResultSuccess);
+    rb.Push<u64>(local_friend_code_seed_b.body.friend_code_seed);
+}
+#else
 void Module::Interface::GetLocalFriendCodeSeedData(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx);
     [[maybe_unused]] u32 out_size = rp.Pop<u32>();
@@ -428,6 +521,7 @@ void Module::Interface::GetLocalFriendCodeSeed(Kernel::HLERequestContext& ctx) {
     rb.Push(ResultSuccess);
     rb.Push<u64>(cfg->local_friend_code_seed_b.friend_code_seed);
 }
+#endif
 
 void Module::Interface::FormatConfig(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx);
