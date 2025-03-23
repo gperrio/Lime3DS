@@ -351,8 +351,8 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
                 if (is_encrypted) {
                     std::vector<u8> temp(to_write);
 
-                    std::array<u8, 16>* key;
-                    std::array<u8, 16>* ctr;
+                    std::array<u8, 16>* key = nullptr;
+                    std::array<u8, 16>* ctr = nullptr;
 
                     if (reg->type == CryptoRegion::EXHEADER) {
                         key = &primary_key;
@@ -608,9 +608,7 @@ ResultVal<std::size_t> CIAFile::WriteContentData(u64 offset, std::size_t length,
                 decryption_state->content[i].ProcessData(temp.data(), temp.data(), temp.size());
             }
 
-            file.Write(temp.data(), temp.size());
-            if (file.IsError())
-                success = false;
+            file.WriteBytes(temp.data(), temp.size());
 
             // Keep tabs on how much of this content ID has been written so new range_min
             // values can be calculated.
@@ -2469,13 +2467,13 @@ void Module::Interface::GetNumImportTitleContextsImpl(IPC::RequestParser& rp,
     IPC::RequestBuilder rb = rp.MakeBuilder(3, 0);
     rb.Push(ResultSuccess);
 
-    u32 count = 0;
+ //   u32 count = 0;
     for (auto it = am->import_title_contexts.begin(); it != am->import_title_contexts.end(); it++) {
-        if (include_installing &&
-                (it->second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
-                 it->second.state == ImportTitleContextState::RESUMABLE) ||
-            include_finalizing && it->second.state == ImportTitleContextState::WAITING_FOR_COMMIT) {
-            count++;
+        if ((include_installing &&
+             (it->second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
+              it->second.state == ImportTitleContextState::RESUMABLE) )||
+            (include_finalizing && it->second.state == ImportTitleContextState::WAITING_FOR_COMMIT)) {
+//            count++;
         }
     }
 
@@ -2491,11 +2489,11 @@ void Module::Interface::GetImportTitleContextListImpl(IPC::RequestParser& rp,
     u32 written = 0;
 
     for (auto& key_value : am->import_content_contexts) {
-        if (include_installing &&
-                (key_value.second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
-                 key_value.second.state == ImportTitleContextState::RESUMABLE) ||
-            include_finalizing &&
-                key_value.second.state == ImportTitleContextState::WAITING_FOR_COMMIT) {
+        if ((include_installing &&
+             (key_value.second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
+              key_value.second.state == ImportTitleContextState::RESUMABLE) )||
+            (include_finalizing &&
+             key_value.second.state == ImportTitleContextState::WAITING_FOR_COMMIT)) {
 
             out_buf.Write(&key_value.first, written * sizeof(u64), sizeof(u64));
             written++;

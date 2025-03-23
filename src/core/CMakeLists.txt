@@ -66,7 +66,6 @@ add_library(citra_core STATIC
     file_sys/artic_cache.h
     file_sys/certificate.cpp
     file_sys/certificate.h
-    file_sys/cia_common.h
     file_sys/cia_container.cpp
     file_sys/cia_container.h
     file_sys/directory_backend.h

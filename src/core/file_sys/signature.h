@@ -19,15 +19,6 @@ enum SignatureType : u32 {
     EcdsaSha256 = 0x10005
 };
 
-enum TMDSignatureType : u32 {
-    Rsa4096Sha1 = 0x10000,
-    Rsa2048Sha1 = 0x10001,
-    EllipticSha1 = 0x10002,
-    Rsa4096Sha256 = 0x10003,
-    Rsa2048Sha256 = 0x10004,
-    EcdsaSha256 = 0x10005
-};
-
 inline u32 GetSignatureSize(u32 signature_type) {
     switch (signature_type) {
     case Rsa4096Sha1:

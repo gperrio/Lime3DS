@@ -347,8 +347,8 @@ private:
     std::shared_ptr<CurrentImportingTitle> importing_title;
     u16 index;
 
-    NCCH_Header ncch_header;
-    size_t ncch_copied = 0;
+//    NCCH_Header ncch_header;
+//    size_t ncch_copied = 0;
 };
 
 /**
@@ -1066,8 +1066,8 @@ private:
 
     Core::System& system;
     bool cia_installing = false;
-    bool force_old_device_id = false;
-    bool force_new_device_id = false;
+//    bool force_old_device_id = false;
+//    bool force_new_device_id = false;
     std::array<std::vector<u64_le>, 3> am_title_list;
     std::multimap<u64, u64> am_ticket_list;
     std::shared_ptr<Kernel::Mutex> system_updater_mutex;

@@ -120,7 +120,7 @@ std::vector<u8> RsaSlot::GetSignature(std::span<const u8> message) const {
 }
 
 // todotodo
-#ifdef 0
+#ifdef todotodo
 void InitSlots() {
     static bool initialized = false;
     if (initialized)

@@ -8,7 +8,6 @@
 #include <cryptopp/sha.h>
 #include "common/alignment.h"
 #include "core/file_sys/certificate.h"
-#include "core/file_sys/cia_common.h"
 #include "core/file_sys/otp.h"
 #include "core/file_sys/signature.h"
 #include "core/file_sys/ticket.h"

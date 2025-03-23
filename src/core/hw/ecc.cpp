@@ -5,6 +5,7 @@
 #include <sstream>
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <common/string_util.h>
 #include "common/common_paths.h"
 #include "common/file_util.h"
 #include "core/hw/aes/key.h"

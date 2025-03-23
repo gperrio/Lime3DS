@@ -118,7 +118,7 @@ void Module::Interface::GetWifiStatus(Kernel::HLERequestContext& ctx) {
 //--
     IPC::RequestBuilder rb = rp.MakeBuilder(2, 0);
     rb.Push(ResultSuccess);
-#ifdeftodotodo
+#ifdef todotodo
     rb.Push<u32>(static_cast<u32>(WifiStatus::STATUS_CONNECTED_SLOT1));
 #else
     rb.Push<u32>(static_cast<u32>(can_reach_internet ? (Settings::values.is_new_3ds
