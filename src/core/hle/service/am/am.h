@@ -147,8 +147,9 @@ public:
 
 private:
     friend class CIAFile;
-    FileUtil::IOFile file;
+    std::unique_ptr<FileUtil::IOFile> file;
     bool is_error = false;
+//    bool is_not_ncch = false;
     bool decryption_authorized = false;
 
     std::size_t written = 0;
@@ -1063,8 +1064,10 @@ private:
 
     Core::System& system;
     bool cia_installing = false;
-//    bool force_old_device_id = false;
-//    bool force_new_device_id = false;
+
+    bool force_old_device_id = false;
+    bool force_new_device_id = false;
+
     std::array<std::vector<u64_le>, 3> am_title_list;
     std::multimap<u64, u64> am_ticket_list;
     std::shared_ptr<Kernel::Mutex> system_updater_mutex;

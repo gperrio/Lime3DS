@@ -449,7 +449,7 @@ jlongArray Java_org_citra_citra_1emu_NativeLibrary_getSystemTitleIds(JNIEnv* env
 jobject Java_org_citra_citra_1emu_NativeLibrary_downloadTitleFromNus([[maybe_unused]] JNIEnv* env,
                                                                      [[maybe_unused]] jobject obj,
                                                                      jlong title) {
-    const auto title_id = static_cast<u64>(title);
+    [[maybe_unused]] const auto title_id = static_cast<u64>(title);
     Service::AM::InstallStatus status = Service::AM::InstallFromNus(title_id);
     if (status != Service::AM::InstallStatus::Success) {
         return IDCache::GetJavaCiaInstallStatus(status);

@@ -124,12 +124,29 @@ public:
 };
 
 NCCHCryptoFile::NCCHCryptoFile(const std::string& out_file) {
-    file = FileUtil::IOFile(out_file, "wb");
+#ifdef todotodo
+    // A console unique crypto file is used to store the decrypted NCCH file. This is done
+    // to prevent Azahar being used as a tool to download easy shareable decrypted contents
+    // from the eshop.
+    file = HW::UniqueData::OpenUniqueCryptoFile(out_file, "wb",
+                                                HW::UniqueData::UniqueCryptoFileID::NCCH);
+    if (!file->IsOpen()) {
+        is_error = true;
+    }
+#else
+    file = std::make_unique<FileUtil::IOFile>(out_file, "wb");
+#endif
 }
 
 void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
     if (is_error)
         return;
+
+#ifdef todotodo
+    if (is_not_ncch) {
+        file->WriteBytes(buffer, length);
+    }
+#endif
 
     const int kBlockSize = 0x200; ///< Size of ExeFS blocks (in bytes)
 
@@ -143,7 +160,14 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
 
     if (!header_parsed && header_size == sizeof(NCCH_Header)) {
         if (Loader::MakeMagic('N', 'C', 'C', 'H') != ncch_header.magic) {
+#ifdef todotodo
+            // Most likely DS contents, store without additional operations
+            is_not_ncch = true;
+            file->WriteBytes(&ncch_header, sizeof(ncch_header));
+            file->WriteBytes(buffer, length);
+#else
             is_error = true;
+#endif
             return;
         }
 
@@ -307,7 +331,7 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
 
         u8 prev_crypto = ncch_header.no_crypto;
         ncch_header.no_crypto.Assign(1);
-        file.WriteBytes(&ncch_header, sizeof(ncch_header));
+        file->WriteBytes(&ncch_header, sizeof(ncch_header));
         written += sizeof(ncch_header);
         ncch_header.no_crypto.Assign(prev_crypto);
     }
@@ -334,7 +358,7 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
         if (reg == nullptr) {
             // This file has no encryption
             size_t to_write = length;
-            file.WriteBytes(buffer, to_write);
+            file->WriteBytes(buffer, to_write);
             written += to_write;
             buffer += to_write;
             length -= to_write;
@@ -342,7 +366,7 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
             if (written < reg->offset) {
                 // Not inside a crypto region
                 size_t to_write = std::min(length, reg->offset - written);
-                file.WriteBytes(buffer, to_write);
+                file->WriteBytes(buffer, to_write);
                 written += to_write;
                 buffer += to_write;
                 length -= to_write;
@@ -376,7 +400,7 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
                         d.Seek(offset);
                     }
                     d.ProcessData(temp.data(), buffer, to_write);
-                    file.WriteBytes(temp.data(), to_write);
+                    file->WriteBytes(temp.data(), to_write);
 
                     if (reg->type == CryptoRegion::EXEFS_HDR) {
                         if (exefs_header_written != sizeof(ExeFs_Header)) {
@@ -405,7 +429,7 @@ void NCCHCryptoFile::Write(const u8* buffer, std::size_t length) {
                         }
                     }
                 } else {
-                    file.WriteBytes(buffer, to_write);
+                    file->WriteBytes(buffer, to_write);
                 }
                 written += to_write;
                 buffer += to_write;
@@ -2467,8 +2491,7 @@ void Module::Interface::GetNumImportTitleContextsImpl(IPC::RequestParser& rp,
     IPC::RequestBuilder rb = rp.MakeBuilder(3, 0);
     rb.Push(ResultSuccess);
 
-    // TODO: Make this actually do something:
-    /*
+#ifdef todotodo
     u32 count = 0;
     for (auto it = am->import_title_contexts.begin(); it != am->import_title_contexts.end(); it++) {
         if ((include_installing &&
@@ -2479,9 +2502,11 @@ void Module::Interface::GetNumImportTitleContextsImpl(IPC::RequestParser& rp,
             count++;
         }
     }
-    */
 
+    rb.Push<u32>(count);
+#else
     rb.Push<u32>(static_cast<u32>(am->import_title_contexts.size()));
+#endif
 }
 
 void Module::Interface::GetImportTitleContextListImpl(IPC::RequestParser& rp,
@@ -2493,7 +2518,7 @@ void Module::Interface::GetImportTitleContextListImpl(IPC::RequestParser& rp,
     u32 written = 0;
 
     for (auto& key_value : am->import_content_contexts) {
-       if ((include_installing &&
+        if ((include_installing &&
              (key_value.second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
               key_value.second.state == ImportTitleContextState::RESUMABLE)) ||
             (include_finalizing &&
@@ -3891,6 +3916,8 @@ void Module::Interface::Sign(Kernel::HLERequestContext& ctx) {
 template <class Archive>
 void Module::serialize(Archive& ar, const unsigned int) {
     ar & cia_installing;
+    ar & force_old_device_id;
+    ar & force_new_device_id;
     ar & am_title_list;
     ar & system_updater_mutex;
 }
