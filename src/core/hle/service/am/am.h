@@ -138,7 +138,7 @@ using ProgressCallback = void(std::size_t, std::size_t);
 
 class NCCHCryptoFile final {
 public:
-    NCCHCryptoFile(const std::string& out_file);
+    NCCHCryptoFile(const std::string& out_file, bool encrypted_content);
 
     void Write(const u8* buffer, std::size_t length);
     bool IsError() {
@@ -154,7 +154,7 @@ private:
 
     std::size_t written = 0;
 
-    NCCH_Header ncch_header;
+    NCCH_Header ncch_header{};
     std::size_t header_size = 0;
     bool header_parsed = false;
 
@@ -182,7 +182,7 @@ private:
 
     std::vector<CryptoRegion> regions;
 
-    ExeFs_Header exefs_header;
+    ExeFs_Header exefs_header{};
     std::size_t exefs_header_written = 0;
     bool exefs_header_processed = false;
 };
@@ -447,6 +447,9 @@ public:
 
     protected:
         void GetProgramInfosImpl(Kernel::HLERequestContext& ctx, bool ignore_platform);
+
+        void CommitImportTitlesImpl(Kernel::HLERequestContext& ctx, bool is_update_firm_auto,
+                                    bool is_titles);
 
         /**
          * AM::GetNumPrograms service function
@@ -907,6 +910,8 @@ public:
          */
         void GetRequiredSizeFromCia(Kernel::HLERequestContext& ctx);
 
+        void CommitImportProgramsAndUpdateFirmwareAuto(Kernel::HLERequestContext& ctx);
+
         /**
          * AM::DeleteProgram service function
          * Deletes a program
@@ -983,6 +988,8 @@ public:
 
         void EndImportTitle(Kernel::HLERequestContext& ctx);
 
+        void CommitImportTitles(Kernel::HLERequestContext& ctx);
+
         void BeginImportTmd(Kernel::HLERequestContext& ctx);
 
         void EndImportTmd(Kernel::HLERequestContext& ctx);
@@ -1017,6 +1024,8 @@ public:
          */
         void GetDeviceCert(Kernel::HLERequestContext& ctx);
 
+        void CommitImportTitlesAndUpdateFirmwareAuto(Kernel::HLERequestContext& ctx);
+
         void DeleteTicketId(Kernel::HLERequestContext& ctx);
 
         void GetNumTicketIds(Kernel::HLERequestContext& ctx);
@@ -1035,6 +1044,14 @@ public:
         // Placed on the interface level so that only am:net and am:app have it.
         std::shared_ptr<Network::ArticBase::Client> artic_client = nullptr;
     };
+
+    void ForceO3DSDeviceID() {
+        force_old_device_id = true;
+    }
+
+    void ForceN3DSDeviceID() {
+        force_new_device_id = true;
+    }
 
     /**
      * Gets the CTCert.bin path in the host filesystem
@@ -1064,10 +1081,8 @@ private:
 
     Core::System& system;
     bool cia_installing = false;
-
     bool force_old_device_id = false;
     bool force_new_device_id = false;
-
     std::array<std::vector<u64_le>, 3> am_title_list;
     std::multimap<u64, u64> am_ticket_list;
     std::shared_ptr<Kernel::Mutex> system_updater_mutex;

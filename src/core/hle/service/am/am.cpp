@@ -123,13 +123,18 @@ public:
     std::vector<CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption> content;
 };
 
-NCCHCryptoFile::NCCHCryptoFile(const std::string& out_file) {
+NCCHCryptoFile::NCCHCryptoFile(const std::string& out_file, bool encrypted_content) {
 #ifdef todotodo
-    // A console unique crypto file is used to store the decrypted NCCH file. This is done
-    // to prevent Azahar being used as a tool to download easy shareable decrypted contents
-    // from the eshop.
-    file = HW::UniqueData::OpenUniqueCryptoFile(out_file, "wb",
-                                                HW::UniqueData::UniqueCryptoFileID::NCCH);
+    if (encrypted_content) {
+        // A console unique crypto file is used to store the decrypted NCCH file. This is done
+        // to prevent Azahar being used as a tool to download easy shareable decrypted contents
+        // from the eshop.
+        file = HW::UniqueData::OpenUniqueCryptoFile(out_file, "wb",
+                                                    HW::UniqueData::UniqueCryptoFileID::NCCH);
+    } else {
+        file = std::make_unique<FileUtil::IOFile>(out_file, "wb");
+    }
+
     if (!file->IsOpen()) {
         is_error = true;
     }
@@ -616,7 +621,8 @@ ResultVal<std::size_t> CIAFile::WriteContentData(u64 offset, std::size_t length,
             const FileSys::TitleMetadata& tmd = container.GetTitleMetadata();
             if (i != current_content_index) {
                 current_content_index = static_cast<u16>(i);
-                current_content_file = std::make_unique<NCCHCryptoFile>(content_file_paths[i]);
+                current_content_file =
+                    std::make_unique<NCCHCryptoFile>(content_file_paths[i], decryption_authorized);
                 current_content_file->decryption_authorized = decryption_authorized;
             }
             auto& file = *current_content_file;
@@ -751,7 +757,8 @@ ResultVal<std::size_t> CIAFile::WriteContentDataIndexed(u16 content_index, u64 o
 
     if (content_index != current_content_index) {
         current_content_index = content_index;
-        current_content_file = std::make_unique<NCCHCryptoFile>(content_file_paths[content_index]);
+        current_content_file = std::make_unique<NCCHCryptoFile>(content_file_paths[content_index],
+                                                                decryption_authorized);
         current_content_file->decryption_authorized = decryption_authorized;
     }
     auto& file = *current_content_file;
@@ -1803,9 +1810,12 @@ Result GetTitleInfoFromList(std::span<const u64> title_id_list, Service::FS::Med
             title_info.version = tmd.GetTitleVersion();
             title_info.type = tmd.GetTitleType();
         } else {
+            LOG_DEBUG(Service_AM, "not found title_id={:016X}", title_id_list[i]);
             return Result(ErrorDescription::NotFound, ErrorModule::AM, ErrorSummary::InvalidState,
                           ErrorLevel::Permanent);
         }
+        LOG_DEBUG(Service_AM, "found title_id={:016X} version={:04X}", title_id_list[i],
+                  title_info.version);
         title_info_out.Write(&title_info, write_offset, sizeof(TitleInfo));
         write_offset += sizeof(TitleInfo);
     }
@@ -1819,7 +1829,7 @@ void Module::Interface::GetProgramInfosImpl(Kernel::HLERequestContext& ctx, bool
     auto media_type = static_cast<Service::FS::MediaType>(rp.Pop<u8>());
     u32 title_count = rp.Pop<u32>();
 
-    LOG_DEBUG(Service_AM, "media_type={}", media_type);
+    LOG_DEBUG(Service_AM, "media_type={}, ignore_platform={}", media_type, ignore_platform);
 
     if (artic_client.get()) {
         struct AsyncData {
@@ -1828,7 +1838,7 @@ void Module::Interface::GetProgramInfosImpl(Kernel::HLERequestContext& ctx, bool
             std::vector<u64> title_id_list;
 
             Result res{0};
-            std::vector<u8> out;
+            std::vector<TitleInfo> out;
             Kernel::MappedBuffer* title_id_list_buffer;
             Kernel::MappedBuffer* title_info_out;
         };
@@ -1870,7 +1880,7 @@ void Module::Interface::GetProgramInfosImpl(Kernel::HLERequestContext& ctx, bool
                     return 0;
                 }
 
-                async_data->out.resize(title_infos->second);
+                async_data->out.resize(title_infos->second / sizeof(TitleInfo));
                 memcpy(async_data->out.data(), title_infos->first, title_infos->second);
                 return 0;
             },
@@ -1884,7 +1894,7 @@ void Module::Interface::GetProgramInfosImpl(Kernel::HLERequestContext& ctx, bool
                     }
                 } else {
                     async_data->title_info_out->Write(async_data->out.data(), 0,
-                                                      async_data->out.size());
+                                                      async_data->out.size() / sizeof(TitleInfo));
 
                     IPC::RequestBuilder rb(ctx, 1, async_data->ignore_platform ? 0 : 4);
                     rb.Push(async_data->res);
@@ -1904,16 +1914,20 @@ void Module::Interface::GetProgramInfosImpl(Kernel::HLERequestContext& ctx, bool
         title_id_list_buffer.Read(title_id_list.data(), 0, title_count * sizeof(u64));
 
 #ifdef todotodo
-        // eShop checks if the current importing title already exists during installation.
+        // nim checks if the current importing title already exists during installation.
         // Normally, since the program wouldn't be commited, getting the title info returns not
         // found. However, since GetTitleInfoFromList does not care if the program was commited and
         // only checks for the tmd, it will detect the title and return information while it
-        // shouldn't. To prevent this, we check if the title ID corresponds to the currently
-        // importing title and return not found if so.
+        // shouldn't. To prevent this, we check if the importing context is present and not
+        // committed. If that's the case, return not found
         Result result = ResultSuccess;
-        if (am->importing_title) {
-            for (auto tid : title_id_list) {
-                if (tid == am->importing_title->title_id) {
+        for (auto tid : title_id_list) {
+            for (auto& import_ctx : am->import_title_contexts) {
+                if (import_ctx.first == tid &&
+                    (import_ctx.second.state == ImportTitleContextState::WAITING_FOR_IMPORT ||
+                     import_ctx.second.state == ImportTitleContextState::WAITING_FOR_COMMIT ||
+                     import_ctx.second.state == ImportTitleContextState::RESUMABLE)) {
+                    LOG_DEBUG(Service_AM, "title pending commit title_id={:016X}", tid);
                     result = Result(ErrorDescription::NotFound, ErrorModule::AM,
                                     ErrorSummary::InvalidState, ErrorLevel::Permanent);
                 }
@@ -2707,9 +2721,31 @@ void Module::Interface::NeedsCleanup(Kernel::HLERequestContext& ctx) {
 
     LOG_DEBUG(Service_AM, "(STUBBED) media_type=0x{:02x}", media_type);
 
+#ifdef todotodo
+    bool needs_cleanup = false;
+    for (auto& import_ctx : am->import_title_contexts) {
+        if (import_ctx.second.state == ImportTitleContextState::NEEDS_CLEANUP) {
+            needs_cleanup = true;
+            break;
+        }
+    }
+
+    if (!needs_cleanup) {
+        for (auto& import_ctx : am->import_content_contexts) {
+            if (import_ctx.second.state == ImportTitleContextState::NEEDS_CLEANUP) {
+                needs_cleanup = true;
+            }
+        }
+    }
+#endif
+
     IPC::RequestBuilder rb = rp.MakeBuilder(2, 0);
     rb.Push(ResultSuccess);
+#ifdef todotodo
+    rb.Push<bool>(needs_cleanup);
+#else
     rb.Push<bool>(false);
+#endif
 }
 
 void Module::Interface::DoCleanup(Kernel::HLERequestContext& ctx) {
@@ -2717,6 +2753,24 @@ void Module::Interface::DoCleanup(Kernel::HLERequestContext& ctx) {
     const auto media_type = rp.Pop<u8>();
 
     LOG_DEBUG(Service_AM, "(STUBBED) called, media_type={:#02x}", media_type);
+
+#ifdef todotodo
+    for (auto it = am->import_content_contexts.begin(); it != am->import_content_contexts.end();) {
+        if (it->second.state == ImportTitleContextState::NEEDS_CLEANUP) {
+            it = am->import_content_contexts.erase(it);
+        } else {
+            it++;
+        }
+    }
+
+    for (auto it = am->import_title_contexts.begin(); it != am->import_title_contexts.end();) {
+        if (it->second.state == ImportTitleContextState::NEEDS_CLEANUP) {
+            it = am->import_title_contexts.erase(it);
+        } else {
+            it++;
+        }
+    }
+#endif
 
     IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
     rb.Push(ResultSuccess);
@@ -2959,6 +3013,9 @@ void Module::Interface::EndImportProgramWithoutCommit(Kernel::HLERequestContext&
 }
 
 void Module::Interface::CommitImportPrograms(Kernel::HLERequestContext& ctx) {
+#ifdef todotodo
+    CommitImportTitlesImpl(ctx, false, false);
+#else
     IPC::RequestParser rp(ctx);
     [[maybe_unused]] const auto media_type = static_cast<FS::MediaType>(rp.Pop<u8>());
     [[maybe_unused]] const u32 title_count = rp.Pop<u32>();
@@ -2974,6 +3031,7 @@ void Module::Interface::CommitImportPrograms(Kernel::HLERequestContext& ctx) {
     rb.PushMappedBuffer(buffer);
 
     LOG_WARNING(Service_AM, "(STUBBED)");
+#endif
 }
 
 /// Wraps all File operations to allow adding an offset to them.
@@ -3287,6 +3345,46 @@ void Module::Interface::GetRequiredSizeFromCia(Kernel::HLERequestContext& ctx) {
     rb.Push(container.GetTitleMetadata().GetContentSizeByIndex(FileSys::TMDContentIndex::Main));
 }
 
+void Module::Interface::CommitImportProgramsAndUpdateFirmwareAuto(Kernel::HLERequestContext& ctx) {
+    CommitImportTitlesImpl(ctx, true, false);
+}
+
+void Module::Interface::CommitImportTitlesImpl(Kernel::HLERequestContext& ctx,
+                                               bool is_update_firm_auto, bool is_titles) {
+    IPC::RequestParser rp(ctx);
+    const auto media_type = static_cast<FS::MediaType>(rp.Pop<u8>());
+    [[maybe_unused]] u32 count = rp.Pop<u32>();
+    [[maybe_unused]] u8 database = rp.Pop<u8>();
+
+    LOG_WARNING(Service_AM, "(STUBBED) update_firm_auto={} is_titles={}", is_update_firm_auto,
+                is_titles);
+
+    auto& title_id_buf = rp.PopMappedBuffer();
+
+    std::vector<u64> title_ids(title_id_buf.GetSize() / sizeof(u64));
+    title_id_buf.Read(title_ids.data(), 0, title_id_buf.GetSize());
+
+    for (auto& key_value : am->import_content_contexts) {
+        if (std::find(title_ids.begin(), title_ids.end(), key_value.first) != title_ids.end() &&
+            key_value.second.state == ImportTitleContextState::WAITING_FOR_COMMIT) {
+            key_value.second.state = ImportTitleContextState::NEEDS_CLEANUP;
+        }
+    }
+
+    for (auto tid : title_ids) {
+        auto it = am->import_title_contexts.find(tid);
+        if (it != am->import_title_contexts.end() &&
+            it->second.state == ImportTitleContextState::WAITING_FOR_COMMIT) {
+            it->second.state = ImportTitleContextState::NEEDS_CLEANUP;
+        }
+    }
+
+    am->ScanForTitles(media_type);
+
+    IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+    rb.Push(ResultSuccess);
+}
+
 Result UninstallProgram(const FS::MediaType media_type, const u64 title_id) {
     // Use the content folder so we don't delete the user's save data.
     const auto path = GetTitlePath(media_type, title_id) + "content/";
@@ -3576,6 +3674,10 @@ void Module::Interface::EndImportTitle(Kernel::HLERequestContext& ctx) {
 
     IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
     rb.Push(ResultSuccess);
+}
+
+void Module::Interface::CommitImportTitles(Kernel::HLERequestContext& ctx) {
+    CommitImportTitlesImpl(ctx, false, true);
 }
 
 void Module::Interface::BeginImportTmd(Kernel::HLERequestContext& ctx) {
@@ -3992,6 +4094,10 @@ CTCertLoadStatus Module::LoadCTCertFile(CTCert& output) {
         return CTCertLoadStatus::Invalid;
     }
     return CTCertLoadStatus::Loaded;
+}
+
+void Module::Interface::CommitImportTitlesAndUpdateFirmwareAuto(Kernel::HLERequestContext& ctx) {
+    CommitImportTitlesImpl(ctx, true, true);
 }
 
 void Module::Interface::DeleteTicketId(Kernel::HLERequestContext& ctx) {
