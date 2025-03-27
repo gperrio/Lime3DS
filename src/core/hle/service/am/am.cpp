@@ -556,12 +556,25 @@ Result CIAFile::WriteTitleMetadata(std::span<const u8> tmd_data, std::size_t off
     auto content_count = container.GetTitleMetadata().GetContentCount();
     content_written.resize(content_count);
 
+#ifdef todotodo
     current_content_file.reset();
     current_content_index = -1;
     content_file_paths.clear();
+#else
+    content_files.clear();
+#endif
     for (std::size_t i = 0; i < content_count; i++) {
         auto path = GetTitleContentPath(media_type, tmd.GetTitleID(), i, is_update);
+#ifdef todotodo
         content_file_paths.emplace_back(path);
+#else
+        auto& file = content_files.emplace_back(path, "wb");
+        if (!file.IsOpen()) {
+            LOG_ERROR(Service_AM, "Could not open output file '{}' for content {}.", path, i);
+            // TODO: Correct error code.
+            return FileSys::ResultFileNotFound;
+        }
+#endif
     }
 
     if (container.GetTitleMetadata().HasEncryptedContent()) {
@@ -1379,7 +1392,9 @@ void Module::ScanForTitles(Service::FS::MediaType media_type) {
 }
 
 void Module::ScanForAllTitles() {
+#ifdef todotodo
     ScanForTickets();
+#endif
     ScanForTitles(Service::FS::MediaType::NAND);
     ScanForTitles(Service::FS::MediaType::SDMC);
 }
@@ -2427,9 +2442,16 @@ void Module::Interface::DeleteTicket(Kernel::HLERequestContext& ctx) {
 void Module::Interface::GetNumTickets(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx);
 
+#ifdef todotodo
     LOG_DEBUG(Service_AM, "");
 
     u32 ticket_count = static_cast<u32>(am->am_ticket_list.size());
+#else
+    u32 ticket_count = 0;
+    for (const auto& title_list : am->am_title_list) {
+        ticket_count += static_cast<u32>(title_list.size());
+    }
+#endif
 
     IPC::RequestBuilder rb = rp.MakeBuilder(2, 0);
     rb.Push(ResultSuccess);
@@ -2446,6 +2468,7 @@ void Module::Interface::GetTicketList(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_AM, "ticket_list_count={}, ticket_index={}", ticket_list_count, ticket_index);
 
     u32 tickets_written = 0;
+#ifdef todotodo
     auto it = am->am_ticket_list.begin();
     std::advance(it, std::min(static_cast<size_t>(ticket_index), am->am_ticket_list.size()));
 
@@ -2453,6 +2476,15 @@ void Module::Interface::GetTicketList(Kernel::HLERequestContext& ctx) {
          it++, tickets_written++) {
         ticket_tids_out.Write(&it->first, tickets_written * sizeof(u64), sizeof(u64));
     }
+#else
+    for (const auto& title_list : am->am_title_list) {
+        const auto tickets_to_write =
+            std::min(static_cast<u32>(title_list.size()), ticket_list_count - tickets_written);
+        ticket_tids_out.Write(title_list.data(), tickets_written * sizeof(u64),
+                              tickets_to_write * sizeof(u64));
+        tickets_written += tickets_to_write;
+    }
+#endif
 
     IPC::RequestBuilder rb = rp.MakeBuilder(2, 2);
     rb.Push(ResultSuccess);
